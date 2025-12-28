@@ -1,0 +1,56 @@
+steps:
+  # Build the container image
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', '$_ARTIFACT_REPO/$_REPO_NAME:$TAG_NAME', '-t', '$_ARTIFACT_REPO/$_REPO_NAME:latest', './src']
+
+  # Push the container image to Container Registry
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', '$_ARTIFACT_REPO/$_REPO_NAME:$TAG_NAME']
+
+  # Deploy container image to Cloud Run
+- name: 'gcr.io/cloud-builders/gcloud'
+  # Use 'bash' as the entrypoint to run a shell script
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      set -e
+      
+      # Optional: Navigate to environment-specific directory if needed
+      # cd environments/${_ENV}
+      
+      echo "Setting target project to $_TARGET_PROJECT_ID"
+      # FIX: Added 'gcloud' prefix
+      gcloud config set project $_TARGET_PROJECT_ID
+      
+      
+      echo "Deploying service '$_REPO_NAME' to project '$_TARGET_PROJECT_ID'..."
+        
+      # FIX: Added 'gcloud' prefix
+      # We also explicitly pass --project to be safe, though config set should handle it.
+      gcloud run deploy $_REPO_NAME \
+        --image=$_ARTIFACT_REPO/$_REPO_NAME:$TAG_NAME \
+        --project=$_TARGET_PROJECT_ID \
+        --region=$_REGION
+        # --memory=2Gi \
+        # --concurrency=250 \
+        # --allow-unauthenticated # Uncomment this if you want the service to be public
+        # --service-account=SERVICE_ACCOUNT_EMAIL_IN_TARGET_PROJECT # Uncomment to specify a runtime service account
+      
+      echo "Deployment complete."
+      
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images: ['$_ARTIFACT_REPO/$_REPO_NAME']
+
+substitutions:
+  _ENV: dev
+  _ARTIFACT_REPO: 'gcr.io/$PROJECT_ID'  
+  _REPO_NAME: $_REPO_NAME
+  TAG_NAME: $SHORT_SHA
+  _TARGET_PROJECT_ID: $PROJECT_ID
+  _REGION: us-east1
+
+tags: ['$_REPO_NAME']
