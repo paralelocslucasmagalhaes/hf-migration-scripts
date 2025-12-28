@@ -20,16 +20,16 @@ class ChatStatus(str, Enum):
 @dataclass(kw_only=True)
 class Chat:
     id: str = field(default_factory=lambda: str(uuid4()))
+    app_id: str = field(metadata={"description": "App id"})
     company_id: Optional[str] = field(default=None, metadata={"description": "Company id"})
+    contact_id: Optional[str] = field(default=None, metadata={"description": "Consumer information"})
+    store_id: Optional[str] = field(metadata={"description": "Store id"})
+    user_id: Optional[str] = field(default=None, metadata={"description": "User when take over"})
     handoff: HandoffEnum = field(default=HandoffEnum.AI, metadata={"description": "Handoff to Human"})
     # Optional fields (must define default=None)
-    contact: Optional[Contact] = field(default=None, metadata={"description": "Consumer information"})
     platform: PlatformEnum = field(metadata={"description": "Platform channel"})
-    app_id: str = field(metadata={"description": "App id"})
-    store_id: str = field(metadata={"description": "Store id"})
     created_date: datetime = field(default=datetime.now(), metadata={"description": "Timestamp of the message"})
     updated_date: datetime = field(default=datetime.now(), metadata={"description": "Timestamp of the message"})
-    user: Optional[User] = field(default=None, metadata={"description": "User when take over"})
     status: Optional[ChatStatus] = field(default=ChatStatus.active, metadata={"description": "Consumer information"})
 
     def __post_init__(self):
@@ -44,12 +44,6 @@ class Chat:
         if isinstance(self.platform, str):
             self.platform = PlatformEnum(self.platform)
 
-        if isinstance(self.user, dict):
-            self.user = User( ** self.user)
-
-        if isinstance(self.contact, dict):
-            self.contact = Contact( ** self.contact)
-        
         if isinstance(self.created_date, str):
             self.created_date = datetime.fromisoformat(self.created_date)
             
@@ -71,3 +65,6 @@ class Chat:
         """Muda o estado da entidade quando o serviço de task confirma o agendamento."""        
         self.handoff = HandoffEnum.AI
         self.user = None
+
+    def set_contact(self, contact_id: str):
+        self.contact_id = contact_id

@@ -16,7 +16,7 @@ class Conversation:
     id: str = field(default_factory=lambda: str(uuid4()))
     company_id: Optional[str] = field(default=None, metadata={"description": "Company id"})
     chat_id: Optional[str] = field(default=None, metadata={"description": "Chat id"})
-    contact: Optional[Contact] = field(default=None, metadata={"description": "Consumer information"})
+    contact_id: Optional[str] = field(default=None, metadata={"description": "Consumer information"})
     platform: PlatformEnum = field(metadata={"description": "Platform channel"})
     app_id: Optional[str] = field(default=None, metadata={"description": "App id"})
     store_id: Optional[str] = field(default=None, metadata={"description": "Store id"})
@@ -31,11 +31,14 @@ class Conversation:
         if isinstance(self.platform, str):
             self.platform = PlatformEnum(self.platform)
 
-        if isinstance(self.contact, dict):
-            self.contact = Contact( ** self.contact)
-
         if isinstance(self.created_date, str):
             self.created_date = datetime.fromisoformat(self.created_date)
             
         if isinstance(self.updated_date, str):
             self.updated_date = datetime.fromisoformat(self.updated_date)
+
+    def set_chat(self, chat_id: str):
+        self.chat_id = chat_id
+
+    def set_contact(self, contact_id: str):
+        self.contact_id = contact_id

@@ -327,7 +327,7 @@ class ProcessingMigrateUseCase:
             await asyncio.to_thread(self.store_data, path=path, source_data=source_data, data=asdict(target_data))
         return None
 
-    def parse_chat(self, data: dict, contact: Contact = None, user: User = None, store_id: str = None ) -> Chat:
+    def parse_chat(self, data: dict, contact_id: str = None, user_id: str = None, store_id: str = None ) -> Chat:
         return Chat(
             id=data.get("id"),
             company_id=data.get("company_id"),
@@ -335,18 +335,18 @@ class ProcessingMigrateUseCase:
             updated_date=data.get("updated_date"),
             status=ChatStatus.active,
             app_id=data.get("integration_id"),
-            contact=contact,
+            contact_id=contact_id,
             handoff=data.get("handoff"),
             platform=data.get("last_inbound_channel", PlatformEnum.whatsapp),            
             store_id=store_id,
-            user=user
+            user_id=user_id
         )
     
     def parse_conversation(self, chat: Chat) -> Conversation:
         return Conversation(
             company_id=chat.company_id,
             chat_id=chat.id,
-            contact=chat.contact,
+            contact_id=chat.contact_id,
             platform=chat.platform,
             app_id=chat.app_id,
             store_id=chat.store_id
@@ -360,17 +360,9 @@ class ProcessingMigrateUseCase:
                 continue
             source = source_data.get("source")
             ## Contact
-            contact = None
             consumer_id = source.get("consumer_id")
-            if consumer_id:
-                contact = await self.contact_repository.get(id=consumer_id)
-
             ## User
-            user = None
             user_id = source.get("user_id")
-            if user_id:
-                user = await self.user_repository.get(id=user_id)
-
             ## App
             store_id = None
             app_id = source.get("integration_id")
@@ -381,8 +373,8 @@ class ProcessingMigrateUseCase:
             target_data = await self.chat_repository.add(
                     document=self.parse_chat(
                             data=source,
-                            contact=contact,
-                            user=user,
+                            contact_id=consumer_id,
+                            user_id=user_id,
                             store_id=store_id),
                     
                     )
@@ -393,7 +385,7 @@ class ProcessingMigrateUseCase:
 
         return None
     
-    def parse_message(self, data: dict, chat: Chat, conversation: Conversation, from_: Contact, to: Contact) -> Message:
+    def parse_message(self, data: dict, chat: Chat, conversation: Conversation, from_: str, to: str) -> Message:
         return Message(
             id=data.get("id"),
             author=data.get("author"),
@@ -407,7 +399,7 @@ class ProcessingMigrateUseCase:
             agent_id=data.get("agent_id"),
             store_id=chat.store_id,
             conversation_id=conversation.id,
-            contact=chat.contact,
+            contact_id=chat.contact_id,
             from_=from_,
             to=to,
             message=data.get("message"),
@@ -426,9 +418,10 @@ class ProcessingMigrateUseCase:
             source = source_chat_data.get("source")            
             chat_info = await self.chat_repository.get(id = source.get("id"))
             app = await self.apps_respository.get(id=source.get("integration_id"))
+            contact = await self.contact_repository.get(id=source.get("consumer_id"))
             conversation = await self.conversation_repository.get_list_by(field="chat_id", condition="==", value=chat_info.id)
             datas.update({
-                chat_info.id: {"chat": chat_info, "app": app, "conversation": conversation[0]}
+                chat_info.id: {"chat": chat_info, "app": app, "conversation": conversation[0], "contact": contact}
             })
 
         files = await asyncio.to_thread(self.list_of_file, source_company_id=source_company_id, collection=collection)
@@ -439,27 +432,18 @@ class ProcessingMigrateUseCase:
             source = source_data.get("source")
             all_infos = datas.get(source.get("chat_id"))
             chat = all_infos.get("chat")
+            contact = all_infos.get("contact")
             app = all_infos.get("app")
             conversation = all_infos.get("conversation")
             direction = source.get("direction")
             from_ = None
             to = None
             if direction == "incoming":
-                from_ = chat.contact
-                to = Contact(
-                    mobile= app.app.phone_number,
-                    platform_id=app.platform_id,
-                    id=app.id,
-                    company_id=app.company_id,
-                )
+                from_ = contact.platform_id
+                to = app.platform_id
             else:
-                from_ = Contact(
-                    mobile= app.app.phone_number,
-                    platform_id=app.platform_id,
-                    id=app.id,
-                    company_id=app.company_id,
-                )
-                to = chat.contact
+                from_ = app.platform_id
+                to = contact.platform_id
             target_data = await self.message_repository.add(
                     document=self.parse_message(
                             data=source,
@@ -474,21 +458,6 @@ class ProcessingMigrateUseCase:
         return None
 
     
-    
-
-    #     return None
-    
-    # async def get_messages(self, source_company_id: str, created_date: datetime, collection: CollectionEnum):
-    #     data_of_chats = await self.chat_repository.get_all_documents()
-    #     for chat in data_of_chats:
-    #         message_repository = MessageRepository(company_id=source_company_id, chat_id=chat.get("id"))
-    #         data_of_list = await message_repository.get_all_documents()
-    #         [await self.list_of_data(company_id=source_company_id, collection=collection, data=data) for data in data_of_list]
-    #     return None
-
-    
-    
-
     
     
 

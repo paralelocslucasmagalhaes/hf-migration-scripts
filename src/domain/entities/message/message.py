@@ -4,7 +4,7 @@ from typing import Optional
 from enum import Enum
 from domain.entities.contact import Contact
 from domain.entities.platform import PlatformEnum
-import uuid
+from uuid import uuid4
 from typing import List
 from domain.entities.message.template import Template
 
@@ -33,7 +33,7 @@ class MessageStatus:
             self.status = MessageStatusEnum(self.status)
 
         if isinstance(self.created_date, str):
-            self.created_date = datetime.fromisoformat(self.created_date)       
+            self.created_date = datetime.fromisoformat(self.created_date.replace(" ", "T"))
 
 # Defining the Enums
 class AuthorEnum(str, Enum):
@@ -59,23 +59,24 @@ class Media:
 
 @dataclass(kw_only=True)
 class Message:
-    id: Optional[str] = field(default=None, metadata={"description": "Message id"})
+    id: str = field(default_factory=lambda: str(uuid4()), metadata={"description": "Message id"})    
+    app_id: str = field(metadata={"description": "App id"})
+    company_id: str = field(default=None, metadata={"description": "Company id"})
     author: AuthorEnum = field(metadata={"description": "Author of the message"})
-    platform_message_id: Optional[str] = field(default=None, metadata={"description": "Platform message id"})
-    company_id: Optional[str] = field(default=None, metadata={"description": "Company id"})
     chat_id: Optional[str] = field(default=None, metadata={"description": "Chat id"})
-    app_id: Optional[str] = field(default=None, metadata={"description": "App id"})
+    contact_id: Optional[str] = field(default=None, metadata={"description": "Consumer information"})
+    from_: str = field(metadata={"description": "Consumer information"})
+    to: str = field(metadata={"description": "Consumer information"})
     agent_id: Optional[str] = field(default=None, metadata={"description": "Agent id"})
-    store_id: Optional[str] = field(default=None, metadata={"description": "Store id"})
     campaign_id: Optional[str] = field(default=None, metadata={"description": "Store id"})
+    store_id: Optional[str] = field(default=None, metadata={"description": "Store id"})
+    platform_message_id: Optional[str] = field(default=None, metadata={"description": "Platform message id"})
     template_id: Optional[str] = field(default=None, metadata={"description": "Store id"})
     conversation_id: Optional[str] = field(default=None, metadata={"description": "Conversation id"})
-    contact: Optional[Contact] = field(default=None, metadata={"description": "Consumer information"})
+
     # Optional fields (must define default=None)
-    from_: Optional[Contact] = field(default=None, metadata={"description": "Consumer information"})
-    to: Optional[Contact] = field(default=None, metadata={"description": "Consumer information"})
     message: str = field(metadata={"description": "Message content"})
-    message_type: str = field(default=None, metadata={"description": "Consumer information"})
+    message_type: str = field(default="text", metadata={"description": "Consumer information"})
     media: Optional[Media] = field(default=None, metadata={"description": "Media"})
     direction: Optional[DirectionEnum] = field(default=None, metadata={"description": "Message direction"})
     platform: PlatformEnum = field(metadata={"description": "Platform Message channel"})
@@ -106,11 +107,6 @@ class Message:
         if isinstance(self.status, str):
             self.status = MessageStatusEnum(self.status)
         
-        if isinstance(self.from_, dict):
-            self.from_ = Contact(** self.from_)
-
-        if isinstance(self.to, dict):
-            self.to = Contact(** self.to)
         
         if isinstance(self.media, dict):
             self.media = Media(** self.media)
@@ -127,7 +123,6 @@ class Message:
         if isinstance(self.updated_date, str):
             self.updated_date = datetime.fromisoformat(self.updated_date)
 
-
     def update_status(self, status: MessageStatusEnum, created_date: datetime = datetime.now()):
         """Muda o estado da entidade quando o serviço de task confirma o agendamento."""        
         self.status = status
@@ -136,6 +131,16 @@ class Message:
     def update_platform_message_id(self, platform_message_id: str):
         """Muda o estado da entidade quando o serviço de task confirma o agendamento."""        
         self.platform_message_id = platform_message_id
+
+    def set_chat(self, chat_id: str):
+        self.chat_id = chat_id
+
+    def set_contact(self, contact_id: str):
+        self.contact_id = contact_id
+
+    def set_conversation(self, conversation_id: str):
+        self.conversation_id = conversation_id
+
 
 @dataclass(kw_only=True)
 class MessageOutgoingUpdate:
